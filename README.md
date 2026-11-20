@@ -36,26 +36,22 @@ Built and published by **[Oğuz Tonyalı](https://github.com/Zodomik)**. This re
 | Interface | Swift, SwiftUI | Gauges, charts and instrument-specific surfaces. |
 | Motion and location | Core Motion, Core Location, MapKit | Motion, magnetic-field, pressure and location-based instruments. |
 | Spatial measurement | ARKit, SceneKit | Camera-based spatial measurement on supported hardware. |
-| Audio analysis | AVFoundation, Accelerate | Microphone input and frequency-analysis processing. |
+| Audio analysis | AVFoundation, Accelerate | Microphone RMS and zero-crossing frequency estimates. |
 | Persistence and access | SwiftData, StoreKit 2, RevenueCat | Local measurement history and Pro access. |
 
-## Engineering highlights
+## Implementation notes
 
-### Capability-aware instruments
+SwiftUI sensor app; on-device services; SwiftData measurement history; local CSV/PDF export.
 
-Hardware and permission checks sit at the service boundary. Each tool can show an explicit unavailable state when the required device capability is missing.
+- vDSP RMS measurement and zero-crossing frequency estimation.
+- AR raycast endpoints, 3D distance and vertical height difference.
+- Rolling vibration RMS and bounded live sample windows.
 
-### One shell, distinct measurement domains
-
-Shared design components give instruments a consistent feel while motion, location, sound and AR services retain their own responsibilities and update lifecycles.
-
-### Useful data beyond the live dial
-
-A structured local session model connects readings to timestamps, notes and history. Persistence is separated from continuously updating sensor streams.
-
-Readings are practical estimates from consumer sensors. The magnetic-field instrument measures magnetic fields; it does not detect Wi-Fi, cellular or other RF radiation.
-
-→ **[Explore the architecture and design decisions](docs/ENGINEERING.md)**
+| Read more | What is covered |
+| --- | --- |
+| [Architecture and frameworks](docs/ENGINEERING.md) | Runtime components, backend structure and framework responsibilities |
+| [Database and local data](docs/DATA_MODEL.md) | Entities, relationships, constraints and persistence choices |
+| [Algorithms and implementation choices](docs/ALGORITHMS.md) | Calculations, example flows and the limits of each approach |
 
 ## Try the product
 

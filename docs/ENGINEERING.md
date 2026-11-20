@@ -1,48 +1,53 @@
-# Toolbox Pro · Engineering notes
+# Toolbox Pro · Architecture
 
-This overview describes the product’s implementation at a component level. It accompanies the [product showcase](../README.md).
+*Implementation notes checked against the working project on 20 November 2026. Store builds may differ as the project evolves.*
 
-## Component map
+Toolbox Pro is a native sensor/instrument app. Measurement processing and history run on the device; it has no custom measurement backend or account database.
+
+| Component | Technology | What it does |
+| --- | --- | --- |
+| Interface | Swift, SwiftUI | Instrument-specific gauges, graphs, tool routing and history |
+| Motion | Core Motion: CMMotionManager, CMAltimeter | Device motion, magnetic vector, attitude, pressure and relative altitude |
+| Location | Core Location, MapKit | Coordinates, heading, speed and trip distance |
+| Audio | AVFoundation, Accelerate / vDSP | Microphone buffers and RMS measurement |
+| Spatial tools | ARKit, SceneKit, SIMD | Surface raycasts, 3D points and measurement markers |
+| History | SwiftData | Measurement sessions, summaries, samples and notes |
+| Export | Foundation, UIKit / UIGraphicsPDFRenderer | CSV and paginated PDF reports |
+| Purchases | RevenueCat, StoreKit 2 | Pro access and restore flow |
 
 ```mermaid
 flowchart TD
-A[Instrument interface] --> B[Capability and permission checks]
-B --> C[Motion and location services]
-B --> D[Audio analysis]
-B --> E[AR measurement]
-C --> F[Local session history]
-D --> F
-E --> F
+    Router[Tool router] --> Capability[Hardware and permission checks]
+    Capability --> Motion[Motion service]
+    Capability --> Audio[Audio service]
+    Capability --> Location[Location service]
+    Capability --> AR[AR scene]
+    Motion --> Views[Live instrument views]
+    Audio --> Views
+    Location --> Views
+    AR --> Views
+    Views --> Sessions[(SwiftData sessions)]
+    Sessions --> Export[CSV and PDF export]
 ```
 
-The diagram emphasizes responsibilities and data flow. Platform integrations can have their own independent lifecycle.
+## Shared shell, separate sensor services
 
-## Design decisions
+Motion, location, microphone, torch, purchasing and export each have a service boundary. The UI can share design components while requesting only the capabilities needed by a tool.
 
-### Capability-aware instruments
+Motion updates run on a serial operation queue at a requested 30 Hz. Published UI state is updated on the main actor. Graphs retain a bounded recent sample window, while saved sessions are a separate durable representation.
 
-Hardware and permission checks sit at the service boundary. Each tool can show an explicit unavailable state when the required device capability is missing.
+The audio service taps the input buffer, calculates RMS with vDSP, converts it to a displayed level and estimates frequency from zero crossings. Although Accelerate is imported, this implementation is **not an FFT spectrum analyzer**.
 
-### One shell, distinct measurement domains
+AR tools use `ARWorldTrackingConfiguration`, plane detection and raycasts from the view’s center. SceneKit places endpoint markers and the connecting line. The two-point geometry produces length or a vertical height difference.
 
-Shared design components give instruments a consistent feel while motion, location, sound and AR services retain their own responsibilities and update lifecycles.
+## Storage and external services
 
-### Useful data beyond the live dial
+SwiftData holds local `MeasurementSession` models; small settings use AppStorage/UserDefaults. Export reads those models and creates files locally. RevenueCat/Apple handle purchase access, separate from measurement processing. There is no custom cloud history service in this implementation.
 
-A structured local session model connects readings to timestamps, notes and history. Persistence is separated from continuously updating sensor streams.
+## Measurement interpretation
 
-## Stack reference
+The audio level uses a fixed offset from digital RMS, and zero crossings are a lightweight frequency estimate. GPS trip filtering is a simple distance-jump rule. These are practical estimates from consumer sensors, not calibrated laboratory measurements. The magnetic instrument measures magnetic field rather than RF/Wi-Fi radiation.
 
-| Area | Technologies | Responsibility |
-| --- | --- | --- |
-| Interface | Swift, SwiftUI | Gauges, charts and instrument-specific surfaces. |
-| Motion and location | Core Motion, Core Location, MapKit | Motion, magnetic-field, pressure and location-based instruments. |
-| Spatial measurement | ARKit, SceneKit | Camera-based spatial measurement on supported hardware. |
-| Audio analysis | AVFoundation, Accelerate | Microphone input and frequency-analysis processing. |
-| Persistence and access | SwiftData, StoreKit 2, RevenueCat | Local measurement history and Pro access. |
+**Code landmarks:** `MotionSensorService`, `AudioMeterService`, `LocationService`, `CapabilityService`, `MeasurementSession`, `ARMeasureRepresentable` and `ExportService`.
 
-## Scope
-
-The technology summary was checked against the application’s Swift imports, project configuration and relevant service/model implementations. Backend technologies, where listed, were checked against the associated package manifest and database schema. Store screenshots illustrate the released product; the private working project may continue evolving after release.
-
-This documentation publishes no credentials, deployment configuration, private endpoints or application source. Product behavior and supported devices are described in the [current App Store listing](https://apps.apple.com/us/app/toolbox-pro-smart-tools/id6806764591).
+**Continue:** [Local data model](DATA_MODEL.md) · [Calculations](ALGORITHMS.md) · [Product](../README.md)
